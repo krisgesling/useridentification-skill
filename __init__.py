@@ -1,6 +1,4 @@
-from mycroft import MycroftSkill, intent_file_handler
-import os
-from shutil import copyfile
+from mycroft import MycroftSkill, intent_handler
 import os
 import sqlite3
 import sys
@@ -14,15 +12,17 @@ from voiceRecognition import voiceFound, voiceMatched
 class Useridentification(MycroftSkill):
 	def __init__(self):
 	        MycroftSkill.__init__(self)
+			self.db_path = '/opt/mycroft/skills/useridentification-skill/allUsers/Users.db'
+			# self.current_user = None
 
 	def converse(self, utterances):
 		utt = utterances[0]
-		block_utterance = None
+		is_authenticated = False
 		if self.voc_match(utt, 'useridentification.intent'):
 			# mock the standard message object to pass it to a standard intent handler
 			mock_message = {'data': {'utterance': utt}}
 
-			is_authenticated = self.handle_useridentification(mock_message)
+			is_authenticated = self.handle_identify_user(mock_message)
 		else:
 			return False
 		self.log.info("is_authenticated: {}".format(is_authenticated))
@@ -32,19 +32,18 @@ class Useridentification(MycroftSkill):
 		return block_utterance
 
 
-
 	#What to do when skill is triggered
-	@intent_file_handler('useridentification.intent')
-	def handle_useridentification(self, message):
+	@intent_handler('useridentification.intent')
+	def handle_identify_user(self, message):
 		is_authenticated = False
 
 		#connect to database
-		conn = sqlite3.connect('/opt/mycroft/skills/useridentification-skill/allUsers/Users.db')
+		conn = sqlite3.connect(self.db_path)
 		c = conn.cursor()
 		c.execute("SELECT * FROM User")
 
 		if c.fetchone() == None:
-			self.speak("No user is currently registered")
+			self.speak_dialog('no.registered.users')
 			is_authenticated = self.prompt_for_registration()
 		else:
 			currentUser = ""
@@ -58,7 +57,7 @@ class Useridentification(MycroftSkill):
 			if voiceMatched(currentUser, currentUserAnswer):
 				is_authenticated = True
 			elif voiceFound(currentUserAnswer):
-				self.signIn("")
+				self.signIn()
 				is_authenticated = True
 			else:
 				is_authenticated = self.prompt_for_registration()
@@ -69,26 +68,24 @@ class Useridentification(MycroftSkill):
 
 	def prompt_for_registration(self):
 		registered = False
-		answer = self.ask_yesno("Do you want to sign up?")
+		answer = self.ask_yesno('signup.request')
 		if (answer == "yes"):
-			self.signUp()
-			registered = True
+			registered = self.signUp()
 		elif (answer == "no"):
-			self.speak("Goodbye")
+			self.speak_dialog('signup.declined')
 		else:
-			self.speak(answer)
-			self.speak("Answer is invalid")
+			self.speak_dialog('invalid.response', {'answer': answer})
 		return registered
 
 
-	def signIn(self, userId):
-		conn = sqlite3.connect('/opt/mycroft/skills/useridentification-skill/allUsers/Users.db')
+	def signIn(self, userId=None):
+		conn = sqlite3.connect(self.db_path)
 		c = conn.cursor()
-		if(userId == ""):
+		if userId is None:
 			c.execute("SELECT * FROM User")
-			if not (c.fetchone() == None):
+			if c.fetchone() != None:
 				for row in c.execute("SELECT * FROM User"):
-					if (voiceMatched(row[1], getCurrentUserAnswer())):
+					if voiceMatched(row[1], getCurrentUserAnswer()):
 						userId = row[0]
 						username = row[1]
 						password = row[2]
@@ -106,15 +103,18 @@ class Useridentification(MycroftSkill):
 
 
 	def signUp(self):
-		audioFile = getCurrentUserAnswer()
-		getUserData('/opt/mycroft/skills/useridentification-skill/allUsers/Users.db')
+		try:
+			audioFile = getCurrentUserAnswer()
+			getUserData(self.db_path)
 
-		conn = sqlite3.connect('/opt/mycroft/skills/useridentification-skill/allUsers/Users.db')
-		c = conn.cursor()
-		c.execute("SELECT COUNT(*) FROM User")
+			conn = sqlite3.connect(self.db_path)
+			c = conn.cursor()
+			c.execute("SELECT COUNT(*) FROM User")
 
-		self.signIn(c.fetchone()[0])
-		return True
+			self.signIn(c.fetchone()[0])
+			return True
+		except Exception:
+			return False
 
 
 def getCurrentUserAnswer():
