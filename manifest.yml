@@ -1,0 +1,11 @@
+dependencies:
+  system:
+    all: python3-tk
+  python:
+    - tensorflow
+    - pandas
+    - numpy
+    - keras
+    - librosa
+    - PySimpleGUI
+    
