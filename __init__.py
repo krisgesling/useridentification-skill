@@ -4,21 +4,20 @@ import sqlite3
 import sys
 
 sys.path.append("/opt/mycroft/skills/useridentification-skill")
-from sqlGui import getUserData
-from voiceRecognition import voiceFound, voiceMatched
+from .sqlGui import getUserData
+from .voiceRecognition import voiceFound, voiceMatched
 
 
 
 class Useridentification(MycroftSkill):
-	def __init__(self):
-	        MycroftSkill.__init__(self)
-			self.db_path = '/opt/mycroft/skills/useridentification-skill/allUsers/Users.db'
-			# self.current_user = None
+	def initialize(self):
+		self.db_path = self.root_dir + '/allUsers/Users.db'
+		# self.current_user = None
 
-	def converse(self, utterances):
+	def converse(self, utterances, lang=None):
 		utt = utterances[0]
 		is_authenticated = False
-		if self.voc_match(utt, 'useridentification.intent'):
+		if self.voc_match(utt, 'useridentification'):
 			# mock the standard message object to pass it to a standard intent handler
 			mock_message = {'data': {'utterance': utt}}
 
@@ -33,9 +32,11 @@ class Useridentification(MycroftSkill):
 
 
 	#What to do when skill is triggered
-	@intent_handler('useridentification.intent')
+	# @intent_handler('useridentification.intent')
 	def handle_identify_user(self, message):
-		is_authenticated = False
+		self.log.info("AUTHENTICATING")
+		is_authenticated = True
+		return is_authenticated
 
 		#connect to database
 		conn = sqlite3.connect(self.db_path)

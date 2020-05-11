@@ -8,4 +8,5 @@ dependencies:
     - keras
     - librosa
     - PySimpleGUI
+    - sounddevice
     
